@@ -5,7 +5,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from ai_analyst import build_analyst_prompt, call_claude_api
+from ai_analyst import build_analyst_prompt, call_groq_api
 from analyzer import analyze_dataframe
 from cleaner import clean_file, dataframe_preview
 from supabase_client import (
@@ -132,7 +132,7 @@ async def ai_analyze_dataset(request: AIAnalyzeRequest):
             request.cleaning_report,
             request.column_info or [],
         )
-        ai_report = await call_claude_api(prompt)
+        ai_report = await call_groq_api(prompt)
         report_id = save_analysis_report(request.supabase_path, ai_report, request.analysis_results)
 
         return {

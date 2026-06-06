@@ -1,6 +1,6 @@
 # DataSense AI
 
-Full-stack AI Data Analyst web app. It supports dataset upload, automated cleaning, statistical analysis, chart generation, Claude-powered AI interpretation, PDF export, and saved report history.
+Full-stack AI Data Analyst web app. It supports dataset upload, automated cleaning, statistical analysis, chart generation, Groq-powered AI interpretation, PDF export, and saved report history.
 
 ## Project Structure
 
@@ -31,7 +31,7 @@ copy .env.example .env
 ```text
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_anon_key
-ANTHROPIC_API_KEY=your_anthropic_api_key
+GROQ_API_KEY=your_groq_api_key
 ALLOWED_ORIGIN=http://localhost:5173
 ```
 
@@ -168,10 +168,10 @@ Accepts:
 
 Returns:
 
-- `ai_report`: structured JSON from Claude with executive summary, quality score, insights, column narratives, correlation insights, risks, recommendations, and suggested follow-up analyses.
+- `ai_report`: structured JSON from Groq with executive summary, quality score, insights, column narratives, correlation insights, risks, recommendations, and suggested follow-up analyses.
 - `report_id`: the saved row id from the Supabase `analysis_reports` table.
 
-The backend uses `ANTHROPIC_API_KEY` and model `claude-sonnet-4-20250514`.
+The backend uses `GROQ_API_KEY` and model `llama-3.3-70b-versatile`.
 
 ## Report History
 
@@ -212,7 +212,7 @@ create table analysis_reports (
 ```text
 SUPABASE_URL
 SUPABASE_KEY
-ANTHROPIC_API_KEY
+GROQ_API_KEY
 ALLOWED_ORIGIN
 ```
 

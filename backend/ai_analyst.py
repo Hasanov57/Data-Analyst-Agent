@@ -9,12 +9,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
-ANTHROPIC_MODEL = "claude-sonnet-4-20250514"
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.3-70b-versatile"
 SYSTEM_PROMPT = (
     "You are a senior data analyst with 15 years of experience. You have just received a dataset "
     "and its full statistical analysis. Your job is to provide a deep, structured analytical report "
-    "as if you were presenting to a business stakeholder. Be specific — reference actual column names, "
+    "as if you were presenting to a business stakeholder. Be specific - reference actual column names, "
     "actual numbers, actual patterns. Do not be generic. Structure your response in clearly labeled sections."
 )
 
@@ -111,57 +111,59 @@ Write conclusions that directly reference the actual columns and numbers above. 
     }
 
 
-async def call_claude_api(prompt_dict: dict[str, str]) -> dict[str, Any]:
-    api_key = os.getenv("ANTHROPIC_API_KEY")
+async def call_groq_api(prompt_dict: dict[str, str]) -> dict[str, Any]:
+    api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
-        raise RuntimeError("Anthropic API key is not configured.")
+        raise RuntimeError("Groq API key is not configured.")
 
     async with httpx.AsyncClient(timeout=60) as client:
-        first_response = await _send_claude_request(client, api_key, prompt_dict["system_prompt"], prompt_dict["user_prompt"])
+        first_response = await _send_groq_request(client, api_key, prompt_dict["system_prompt"], prompt_dict["user_prompt"])
         try:
-            return _parse_claude_json(first_response)
+            return _parse_model_json(first_response)
         except ValueError:
             retry_prompt = (
                 f"{prompt_dict['user_prompt']}\n\nYour previous response was not valid JSON. "
                 "Return only valid JSON that exactly matches the requested structure."
             )
-            second_response = await _send_claude_request(client, api_key, prompt_dict["system_prompt"], retry_prompt)
-            return _parse_claude_json(second_response)
+            second_response = await _send_groq_request(client, api_key, prompt_dict["system_prompt"], retry_prompt)
+            return _parse_model_json(second_response)
 
 
-async def _send_claude_request(
+async def _send_groq_request(
     client: httpx.AsyncClient, api_key: str, system_prompt: str, user_prompt: str
 ) -> str:
     response = await client.post(
-        ANTHROPIC_URL,
+        GROQ_URL,
         headers={
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
+            "authorization": f"Bearer {api_key}",
             "content-type": "application/json",
         },
         json={
-            "model": ANTHROPIC_MODEL,
-            "max_tokens": 4000,
-            "system": system_prompt,
-            "messages": [{"role": "user", "content": user_prompt}],
+            "model": GROQ_MODEL,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "temperature": 0.2,
+            "max_completion_tokens": 4000,
+            "response_format": {"type": "json_object"},
         },
     )
 
     if response.status_code >= 400:
         detail = _extract_api_error(response)
-        raise RuntimeError(f"Claude API request failed: {detail}")
+        raise RuntimeError(f"Groq API request failed: {detail}")
 
     payload = response.json()
-    content_blocks = payload.get("content", [])
-    text_parts = [block.get("text", "") for block in content_blocks if block.get("type") == "text"]
-    text = "\n".join(text_parts).strip()
+    choices = payload.get("choices") or []
+    text = choices[0].get("message", {}).get("content", "").strip() if choices else ""
     if not text:
-        raise RuntimeError("Claude returned an empty response.")
+        raise RuntimeError("Groq returned an empty response.")
 
     return text
 
 
-def _parse_claude_json(text: str) -> dict[str, Any]:
+def _parse_model_json(text: str) -> dict[str, Any]:
     cleaned_text = text.strip()
     cleaned_text = re.sub(r"^```(?:json)?", "", cleaned_text, flags=re.IGNORECASE).strip()
     cleaned_text = re.sub(r"```$", "", cleaned_text).strip()
@@ -171,11 +173,11 @@ def _parse_claude_json(text: str) -> dict[str, Any]:
     except json.JSONDecodeError:
         match = re.search(r"\{.*\}", cleaned_text, flags=re.DOTALL)
         if not match:
-            raise ValueError("Claude response did not contain valid JSON.")
+            raise ValueError("Model response did not contain valid JSON.")
         parsed = json.loads(match.group(0))
 
     if not isinstance(parsed, dict):
-        raise ValueError("Claude response JSON must be an object.")
+        raise ValueError("Model response JSON must be an object.")
 
     return parsed
 

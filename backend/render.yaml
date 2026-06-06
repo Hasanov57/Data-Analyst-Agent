@@ -10,7 +10,7 @@ services:
         sync: false
       - key: SUPABASE_KEY
         sync: false
-      - key: ANTHROPIC_API_KEY
+      - key: GROQ_API_KEY
         sync: false
       - key: ALLOWED_ORIGIN
         sync: false
