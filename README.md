@@ -10,15 +10,20 @@ DataWhiz AI follows a four-step workflow:
 
 1. **Upload**
    The user uploads a `.csv` or `.xlsx` dataset.
+   <img width="1879" height="887" alt="{C4E53AD7-7DF4-4BFE-97CF-335FE83B02B7}" src="https://github.com/user-attachments/assets/6e2e4b3b-53b2-4ab7-b88b-acf2b705dbe5" />
 
-2. **Clean**
+
+3. **Clean**
    The backend cleans the dataset automatically and shows what changed.
 
-3. **Analyze**
+5. **Analyze**
    The app calculates statistical summaries, correlations, outliers, distributions, categorical breakdowns, and time-series trends.
+   <img width="979" height="872" alt="{281F7B82-5874-49A6-A705-5D0217D225C7}" src="https://github.com/user-attachments/assets/afd6da51-e1e5-48bf-9021-9066028461e9" />
 
-4. **AI Report**
+7. **AI Report**
    An AI analyst reads the computed statistics and generates a structured business report with insights, risks, recommendations, and suggested next analyses.
+   <img width="937" height="906" alt="{1EC60B07-7A21-40B3-8099-80C15A1F43CC}" src="https://github.com/user-attachments/assets/622ebfb2-0cd4-48f0-9eda-70d5ea6e9adf" />
+
 
 ## Why This Project Matters
 
