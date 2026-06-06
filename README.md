@@ -30,10 +30,12 @@ copy .env.example .env
 
 ```text
 SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_anon_key
+SUPABASE_KEY=your_supabase_service_role_key
 GROQ_API_KEY=your_groq_api_key
 ALLOWED_ORIGIN=http://localhost:5173
 ```
+
+Use the Supabase `service_role` key for `SUPABASE_KEY` on the backend. Never add the service role key to Vercel or frontend code.
 
 4. Start the API:
 
@@ -49,7 +51,7 @@ The backend runs at `http://localhost:8000`.
 2. Go to Storage.
 3. Create a bucket named `datasets`.
 4. Make the bucket public if you want the app to return public URLs for cleaned CSV files.
-5. Use your project URL and anon key in `backend/.env`.
+5. Use your project URL and service role key in `backend/.env`.
 
 The backend uploads cleaned CSV files under `cleaned/` inside the `datasets` bucket.
 
