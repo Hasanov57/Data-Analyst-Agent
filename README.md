@@ -1,244 +1,104 @@
 # DataSense AI
 
-Full-stack AI Data Analyst web app. It supports dataset upload, automated cleaning, statistical analysis, chart generation, Groq-powered AI interpretation, PDF export, and saved report history.
+DataSense AI is a full-stack AI data analyst web app that turns raw CSV or Excel files into a cleaned dataset, statistical analysis, charts, and a business-style AI report.
+
+The goal of the project is to make exploratory data analysis easier for non-technical users. Instead of opening a spreadsheet, cleaning columns manually, calculating statistics, and writing conclusions from scratch, the user uploads a file and moves through a guided analysis workflow.
+
+## What The App Does
+
+DataSense AI follows a four-step workflow:
+
+1. **Upload**
+   The user uploads a `.csv` or `.xlsx` dataset.
+
+2. **Clean**
+   The backend cleans the dataset automatically and shows what changed.
+
+3. **Analyze**
+   The app calculates statistical summaries, correlations, outliers, distributions, categorical breakdowns, and time-series trends.
+
+4. **AI Report**
+   An AI analyst reads the computed statistics and generates a structured business report with insights, risks, recommendations, and suggested next analyses.
+
+## Why This Project Matters
+
+Raw datasets are often messy and hard to understand quickly. DataSense AI shows how automation and AI can work together in a practical analytics workflow:
+
+- Traditional data processing handles the factual work: cleaning, profiling, statistics, outliers, correlations, and charts.
+- AI handles the interpretation layer: explaining patterns, highlighting risks, and turning numbers into stakeholder-friendly insights.
+
+This separation is important. The AI report is not guessing from the file directly; it is guided by structured analysis results produced by the backend.
+
+## Core Features
+
+- Upload CSV and Excel datasets
+- Automatic data cleaning
+- Cleaning report with row counts, null handling, type conversions, and column changes
+- Numeric descriptive statistics
+- Categorical value breakdowns
+- Correlation analysis
+- Distribution and skewness detection
+- IQR-based outlier detection
+- Time-series trend detection when date columns exist
+- Base64 chart generation
+- AI-generated executive report using Groq
+- PDF export of the AI report
+- Saved report history
+- Dark, professional dashboard-style interface
+
+## Analysis Meaning
+
+The app uses deterministic statistical methods before calling the AI model:
+
+- **Descriptive statistics** summarize numeric columns with mean, median, standard deviation, percentiles, skewness, kurtosis, and min/max values.
+- **Categorical analysis** shows the most common values and flags high-cardinality columns.
+- **Correlation analysis** finds the strongest positive and negative relationships between numeric columns.
+- **Distribution analysis** classifies numeric columns as normal, skewed, or potentially bimodal.
+- **Outlier analysis** uses the IQR method to identify unusually high or low values.
+- **Time-series detection** looks for date columns and estimates trend direction over monthly aggregates.
+
+The AI report is generated from these computed results. It should be treated as an analyst-style interpretation: useful for summarizing patterns and suggesting next steps, but still worth reviewing against the source data for important decisions.
+
+## Tech Stack
+
+**Frontend**
+- React
+- Vite
+- Tailwind CSS
+- Axios
+- React Router
+- jsPDF and html2canvas
+
+**Backend**
+- FastAPI
+- pandas
+- NumPy
+- matplotlib
+- seaborn
+- openpyxl
+
+**Storage and AI**
+- Supabase Storage for cleaned datasets
+- Supabase Database for saved AI reports
+- Groq API for AI-generated analysis
+
+**Deployment Targets**
+- Vercel for the frontend
+- Render for the backend
 
 ## Project Structure
 
 ```text
-frontend/   React, Vite, Tailwind CSS, Axios
-backend/    FastAPI, pandas, Supabase upload
+frontend/   React application and UI components
+backend/    FastAPI API, cleaning engine, analysis engine, chart generation, AI analyst logic
 ```
 
-## Backend Setup
+## Main Screens
 
-1. Create a virtual environment and install dependencies:
+- **Workspace:** file upload, progress stepper, cleaning report, statistical analysis, charts, and AI report.
+- **History:** previously generated AI reports with quality score, date, filename, and row count.
+- **AI Report:** executive summary, quality score, key insights, column narratives, correlation insights, risks, recommendations, next analyses, and PDF export.
 
-```bash
-cd backend
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-```
+## Current Status
 
-2. Create your environment file:
-
-```bash
-copy .env.example .env
-```
-
-3. Add your Supabase values to `backend/.env`:
-
-```text
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_service_role_key
-GROQ_API_KEY=your_groq_api_key
-ALLOWED_ORIGIN=http://localhost:5173
-```
-
-Use the Supabase `service_role` key for `SUPABASE_KEY` on the backend. Never add the service role key to Vercel or frontend code.
-
-4. Start the API:
-
-```bash
-uvicorn main:app --reload
-```
-
-The backend runs at `http://localhost:8000`.
-
-## Supabase Storage Setup
-
-1. Open your Supabase project.
-2. Go to Storage.
-3. Create a bucket named `datasets`.
-4. Make the bucket public if you want the app to return public URLs for cleaned CSV files.
-5. Use your project URL and service role key in `backend/.env`.
-
-The backend uploads cleaned CSV files under `cleaned/` inside the `datasets` bucket.
-
-## Supabase Database Setup
-
-Create the table used to store AI-generated analyst reports:
-
-```sql
-create table analysis_reports (
-  id uuid default gen_random_uuid() primary key,
-  created_at timestamp default now(),
-  supabase_path text,
-  ai_report jsonb,
-  analysis_results jsonb
-);
-```
-
-## Frontend Setup
-
-1. Install dependencies:
-
-```bash
-cd frontend
-npm install
-```
-
-2. Create your environment file:
-
-```bash
-copy .env.example .env
-```
-
-3. Confirm the API URL in `frontend/.env`:
-
-```text
-VITE_API_URL=http://localhost:8000
-```
-
-4. Start the frontend:
-
-```bash
-npm run dev
-```
-
-The frontend runs at the local Vite URL shown in the terminal, usually `http://localhost:5173`.
-
-## API
-
-`POST /api/upload`
-
-Accepts multipart uploads with a `file` field. Supported formats are `.csv` and `.xlsx`.
-
-Returns:
-
-- `cleaning_report`
-- `cleaned_data_preview`
-- `column_info`
-- `supabase_path`
-
-## Cleaning Pipeline
-
-The backend:
-
-- Profiles raw data before cleaning.
-- Removes fully duplicate rows.
-- Strips whitespace from text columns.
-- Detects and converts date-like columns.
-- Detects and converts numeric values stored as text, including values with `$`, commas, and `%`.
-- Fills numeric nulls with median values.
-- Fills text nulls with `Unknown`.
-- Normalizes column names.
-- Profiles cleaned data after cleaning.
-
-## Analysis Pipeline
-
-`POST /api/analyze`
-
-Accepts:
-
-```json
-{
-  "supabase_path": "https://your-project.supabase.co/storage/v1/object/public/datasets/cleaned/file.csv"
-}
-```
-
-The endpoint also accepts a raw storage path such as `cleaned/file.csv`.
-
-Returns:
-
-- `analysis`: structured statistics, categorical summaries, correlations, distributions, outlier summary, and time series detection.
-- `charts`: base64-encoded PNG charts for distributions, correlations, categorical counts, outliers, and time series trends where applicable.
-
-The analysis engine includes:
-
-- Descriptive statistics for numeric columns.
-- Top value counts and cardinality flags for categorical columns.
-- Pearson correlation matrix plus strongest positive and negative pairs.
-- Distribution classification and high-skew flags.
-- IQR-based outlier counts and overall outlier percentage.
-- Datetime detection with monthly aggregation and trend direction.
-
-## AI Analyst Pipeline
-
-`POST /api/ai-analyze`
-
-Accepts:
-
-```json
-{
-  "supabase_path": "cleaned/file.csv",
-  "analysis_results": {},
-  "cleaning_report": {},
-  "column_info": []
-}
-```
-
-Returns:
-
-- `ai_report`: structured JSON from Groq with executive summary, quality score, insights, column narratives, correlation insights, risks, recommendations, and suggested follow-up analyses.
-- `report_id`: the saved row id from the Supabase `analysis_reports` table.
-
-The backend uses `GROQ_API_KEY` and model `llama-3.3-70b-versatile`.
-
-## Report History
-
-`GET /api/reports`
-
-Returns the last 20 saved AI reports from Supabase, ordered by newest first.
-
-`GET /api/reports/{report_id}`
-
-Returns a full saved report with its AI report JSON and analysis results.
-
-## Limits
-
-- Uploads must be `.csv` or `.xlsx`.
-- Maximum file size: 50MB.
-- Maximum dataset size after reading: 500,000 rows.
-
-## Deployment Guide
-
-1. Create a Supabase project.
-2. In Supabase Storage, create a public bucket named `datasets`.
-3. In Supabase SQL Editor, run:
-
-```sql
-create table analysis_reports (
-  id uuid default gen_random_uuid() primary key,
-  created_at timestamp default now(),
-  supabase_path text,
-  ai_report jsonb,
-  analysis_results jsonb
-);
-```
-
-4. Push the project to GitHub.
-5. Connect the backend to Render using `backend/render.yaml`.
-6. In Render, set:
-
-```text
-SUPABASE_URL
-SUPABASE_KEY
-GROQ_API_KEY
-ALLOWED_ORIGIN
-```
-
-7. Connect the frontend to Vercel from the `frontend` directory.
-8. In Vercel, set:
-
-```text
-VITE_API_URL=https://your-render-service-url
-```
-
-9. Set `ALLOWED_ORIGIN` in Render to your production Vercel URL, for example:
-
-```text
-https://your-app.vercel.app
-```
-
-10. Redeploy both services, then test the full flow with a CSV file.
-
-## Final Deployment Checklist
-
-- [ ] Supabase project created
-- [ ] `datasets` storage bucket created and set to public
-- [ ] `analysis_reports` table created with the provided SQL
-- [ ] All env vars set in Render
-- [ ] All env vars set in Vercel
-- [ ] CORS origin updated to production Vercel URL
-- [ ] Test with a CSV file end-to-end
+DataSense AI is feature-complete for the full upload-to-report workflow. It supports the complete path from raw file upload to cleaned data, statistical analysis, AI interpretation, saved history, and PDF export.
