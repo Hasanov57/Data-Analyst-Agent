@@ -47,7 +47,7 @@ def download_cleaned_file(supabase_path: str) -> pd.DataFrame:
     return pd.read_csv(BytesIO(response))
 
 
-def save_analysis_report(supabase_path: str, ai_report: dict, analysis_results: dict) -> str:
+def save_analysis_report(supabase_path: str, ai_report: dict, analysis_results: dict, client_id: str) -> str:
     client = _get_client()
     response = (
         client.table("analysis_reports")
@@ -56,6 +56,7 @@ def save_analysis_report(supabase_path: str, ai_report: dict, analysis_results: 
                 "supabase_path": supabase_path,
                 "ai_report": ai_report,
                 "analysis_results": analysis_results,
+                "client_id": client_id,
             }
         )
         .execute()
@@ -67,11 +68,12 @@ def save_analysis_report(supabase_path: str, ai_report: dict, analysis_results: 
     return response.data[0]["id"]
 
 
-def list_analysis_reports() -> list[dict]:
+def list_analysis_reports(client_id: str) -> list[dict]:
     client = _get_client()
     response = (
         client.table("analysis_reports")
         .select("id, created_at, supabase_path, ai_report, analysis_results")
+        .eq("client_id", client_id)
         .order("created_at", desc=True)
         .limit(20)
         .execute()
@@ -97,12 +99,13 @@ def list_analysis_reports() -> list[dict]:
     return reports
 
 
-def fetch_analysis_report(report_id: str) -> dict | None:
+def fetch_analysis_report(report_id: str, client_id: str) -> dict | None:
     client = _get_client()
     response = (
         client.table("analysis_reports")
         .select("id, created_at, supabase_path, ai_report, analysis_results")
         .eq("id", report_id)
+        .eq("client_id", client_id)
         .limit(1)
         .execute()
     )

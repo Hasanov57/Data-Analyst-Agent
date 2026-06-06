@@ -1,12 +1,12 @@
-# DataSense AI
+# DataWhiz AI
 
-DataSense AI is a full-stack AI data analyst web app that turns raw CSV or Excel files into a cleaned dataset, statistical analysis, charts, and a business-style AI report.
+DataWhiz AI is a full-stack AI data analyst web app that turns raw CSV or Excel files into a cleaned dataset, statistical analysis, charts, and a business-style AI report.
 
 The goal of the project is to make exploratory data analysis easier for non-technical users. Instead of opening a spreadsheet, cleaning columns manually, calculating statistics, and writing conclusions from scratch, the user uploads a file and moves through a guided analysis workflow.
 
 ## What The App Does
 
-DataSense AI follows a four-step workflow:
+DataWhiz AI follows a four-step workflow:
 
 1. **Upload**
    The user uploads a `.csv` or `.xlsx` dataset.
@@ -22,7 +22,7 @@ DataSense AI follows a four-step workflow:
 
 ## Why This Project Matters
 
-Raw datasets are often messy and hard to understand quickly. DataSense AI shows how automation and AI can work together in a practical analytics workflow:
+Raw datasets are often messy and hard to understand quickly. DataWhiz AI shows how automation and AI can work together in a practical analytics workflow:
 
 - Traditional data processing handles the factual work: cleaning, profiling, statistics, outliers, correlations, and charts.
 - AI handles the interpretation layer: explaining patterns, highlighting risks, and turning numbers into stakeholder-friendly insights.
@@ -43,7 +43,7 @@ This separation is important. The AI report is not guessing from the file direct
 - Base64 chart generation
 - AI-generated executive report using Groq
 - PDF export of the AI report
-- Saved report history
+- Saved report history scoped to the current browser
 - Dark, professional dashboard-style interface
 
 ## Analysis Meaning
@@ -99,6 +99,20 @@ backend/    FastAPI API, cleaning engine, analysis engine, chart generation, AI 
 - **History:** previously generated AI reports with quality score, date, filename, and row count.
 - **AI Report:** executive summary, quality score, key insights, column narratives, correlation insights, risks, recommendations, next analyses, and PDF export.
 
+## Privacy Model
+
+The current version does not include user login. Report history is separated with an anonymous browser ID stored locally in each visitor's browser. This prevents one visitor from casually seeing another visitor's history list, while keeping the app simple before a full authentication system is added.
+
+For a production multi-user version, this should be replaced with real authentication and database policies tied to user accounts.
+
+The saved reports table includes a `client_id` field for this temporary history isolation:
+
+```sql
+alter table analysis_reports add column if not exists client_id text;
+create index if not exists analysis_reports_client_id_created_at_idx
+on analysis_reports (client_id, created_at desc);
+```
+
 ## Current Status
 
-DataSense AI is feature-complete for the full upload-to-report workflow. It supports the complete path from raw file upload to cleaned data, statistical analysis, AI interpretation, saved history, and PDF export.
+DataWhiz AI is feature-complete for the full upload-to-report workflow. It supports the complete path from raw file upload to cleaned data, statistical analysis, AI interpretation, saved history, and PDF export.

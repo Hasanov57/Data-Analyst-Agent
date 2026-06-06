@@ -66,7 +66,7 @@ export default function AIReport({ result, generatedAt, onReset }) {
       }
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      pdf.save(`datasense-report-${timestamp}.pdf`);
+      pdf.save(`datawhiz-report-${timestamp}.pdf`);
     } finally {
       setIsExporting(false);
     }

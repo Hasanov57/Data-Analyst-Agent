@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -18,7 +18,7 @@ from supabase_client import (
 from visualizer import generate_charts
 
 
-app = FastAPI(title="DataSense AI API")
+app = FastAPI(title="DataWhiz AI API")
 
 allowed_origin = os.getenv("ALLOWED_ORIGIN")
 allowed_origins = (
@@ -51,6 +51,7 @@ class AIAnalyzeRequest(BaseModel):
     analysis_results: dict
     cleaning_report: dict
     column_info: list[dict] | None = None
+    client_id: str
 
 
 @app.get("/health")
@@ -133,7 +134,12 @@ async def ai_analyze_dataset(request: AIAnalyzeRequest):
             request.column_info or [],
         )
         ai_report = await call_groq_api(prompt)
-        report_id = save_analysis_report(request.supabase_path, ai_report, request.analysis_results)
+        report_id = save_analysis_report(
+            request.supabase_path,
+            ai_report,
+            request.analysis_results,
+            request.client_id,
+        )
 
         return {
             "ai_report": ai_report,
@@ -148,9 +154,11 @@ async def ai_analyze_dataset(request: AIAnalyzeRequest):
 
 
 @app.get("/api/reports")
-async def get_reports():
+async def get_reports(x_client_id: str | None = Header(default=None)):
     try:
-        return {"reports": list_analysis_reports()}
+        if not x_client_id:
+            return {"reports": []}
+        return {"reports": list_analysis_reports(x_client_id)}
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:
@@ -158,9 +166,11 @@ async def get_reports():
 
 
 @app.get("/api/reports/{report_id}")
-async def get_report(report_id: str):
+async def get_report(report_id: str, x_client_id: str | None = Header(default=None)):
     try:
-        report = fetch_analysis_report(report_id)
+        if not x_client_id:
+            raise HTTPException(status_code=400, detail="Client id is required.")
+        report = fetch_analysis_report(report_id, x_client_id)
         if not report:
             raise HTTPException(status_code=404, detail="Report not found.")
         return report

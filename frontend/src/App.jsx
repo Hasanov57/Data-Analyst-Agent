@@ -78,7 +78,7 @@ function AppHeader() {
           <BarChart3 className="h-5 w-5" aria-hidden="true" />
         </div>
         <div>
-          <h1 className="text-xl font-semibold tracking-normal text-white">DataSense AI</h1>
+          <h1 className="text-xl font-semibold tracking-normal text-white">DataWhiz AI</h1>
           <p className="text-sm text-zinc-400">AI data analyst workflow</p>
         </div>
       </Link>
