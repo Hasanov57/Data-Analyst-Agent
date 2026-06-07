@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  background: #0a0b0d;
+  background: #f8fafc;
 }
 
 * {
@@ -15,12 +15,31 @@
 body {
   min-width: 320px;
   margin: 0;
-  background: #0a0b0d;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 button,
 [role="button"] {
   outline-offset: 3px;
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none;
+  }
+
+  .btn-secondary {
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none;
+  }
+
+  .btn-danger {
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none;
+  }
 }
 
 .typing-dots::after {
@@ -42,39 +61,6 @@ button,
   100% {
     content: "...";
   }
-}
-
-.animated-grid-bg {
-  background-image:
-    linear-gradient(rgba(79, 142, 247, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(79, 142, 247, 0.08) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: radial-gradient(circle at 22% 18%, black 0%, transparent 58%);
-  animation: grid-drift 18s linear infinite;
-}
-
-.animated-grid-bg::before,
-.animated-grid-bg::after {
-  content: "";
-  position: absolute;
-  border-radius: 9999px;
-  background: rgba(52, 211, 153, 0.16);
-  animation: particle-float 9s ease-in-out infinite;
-}
-
-.animated-grid-bg::before {
-  left: 12%;
-  top: 18%;
-  height: 5px;
-  width: 5px;
-}
-
-.animated-grid-bg::after {
-  left: 72%;
-  top: 36%;
-  height: 4px;
-  width: 4px;
-  animation-delay: -4s;
 }
 
 @keyframes grid-drift {

@@ -1,12 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, NavLink, Route, Routes, useNavigate } from "react-router-dom";
-import { AlertCircle, BarChart3, Database, FileSpreadsheet, History as HistoryIcon, Loader2, UploadCloud } from "lucide-react";
+import { Link, Route, Routes, useNavigate } from "react-router-dom";
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  FileCheck2,
+  FileSpreadsheet,
+  Loader2,
+  RefreshCw,
+  Trash2,
+  UploadCloud,
+} from "lucide-react";
 
 import { analyzeDataset, generateAIAnalysis, healthCheck, uploadFile } from "./api";
 import AIReport from "./components/AIReport";
 import AnalysisReport from "./components/AnalysisReport";
 import CleaningReport from "./components/CleaningReport";
+import Navbar from "./components/Navbar";
 import History from "./pages/History";
+import Landing from "./pages/Landing";
 
 const ACCEPTED_EXTENSIONS = [".csv", ".xlsx"];
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
@@ -47,128 +59,115 @@ export default function App() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-[#0a0b0d] text-zinc-100">
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-6 sm:px-8 lg:px-10">
-        <AppHeader />
-        {serverWaking && (
-          <div className="mt-4 flex items-center gap-3 rounded-lg border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
-            <Loader2 className="h-4 w-4 animate-spin text-amber-300" aria-hidden="true" />
+    <main className="min-h-screen bg-slate-50 text-slate-950">
+      <Navbar />
+      {serverWaking && (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div className="mx-auto flex max-w-7xl items-center gap-3">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
             Waking up server...
           </div>
-        )}
-        <Routes>
-          <Route path="/" element={<HomeFlow />} />
-          <Route path="/history" element={<HistoryRoute />} />
-        </Routes>
-      </div>
+        </div>
+      )}
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/analyze" element={<AnalyzeWorkspace />} />
+        <Route path="/history" element={<HistoryRoute />} />
+      </Routes>
     </main>
   );
 }
 
 function HistoryRoute() {
   const navigate = useNavigate();
-  return <History onReset={() => navigate("/")} />;
-}
-
-function AppHeader() {
   return (
-    <header className="flex flex-col gap-4 border-b border-zinc-800/80 pb-5 sm:flex-row sm:items-center sm:justify-between">
-      <Link to="/" className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-emerald-400/30 bg-emerald-400/10 text-emerald-300">
-          <BarChart3 className="h-5 w-5" aria-hidden="true" />
-        </div>
-        <div>
-          <h1 className="text-xl font-semibold tracking-normal text-white">DataWhiz AI</h1>
-          <p className="text-sm text-zinc-400">AI data analyst workflow</p>
-        </div>
-      </Link>
-
-      <nav className="flex items-center gap-2">
-        <NavLink
-          to="/"
-          className={({ isActive }) =>
-            `rounded-lg px-3 py-2 text-sm transition ${
-              isActive ? "bg-emerald-400 text-zinc-950" : "border border-zinc-800 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
-            }`
-          }
-        >
-          Workspace
-        </NavLink>
-        <NavLink
-          to="/history"
-          className={({ isActive }) =>
-            `flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition ${
-              isActive ? "bg-emerald-400 text-zinc-950" : "border border-zinc-800 bg-zinc-950 text-zinc-300 hover:bg-zinc-900"
-            }`
-          }
-        >
-          <HistoryIcon className="h-4 w-4" aria-hidden="true" />
-          History
-        </NavLink>
-      </nav>
-    </header>
+    <PageShell>
+      <History onReset={() => navigate("/analyze")} />
+    </PageShell>
   );
 }
 
-function HomeFlow() {
-  const navigate = useNavigate();
+function AnalyzeWorkspace() {
   const inputRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileInfo, setFileInfo] = useState(null);
+  const [flowState, setFlowState] = useState("idle");
   const [isDragging, setIsDragging] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [aiResult, setAiResult] = useState(null);
   const [aiGeneratedAt, setAiGeneratedAt] = useState(null);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+
+  const clearInput = () => {
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
+  };
+
+  const resetResults = () => {
+    setResult(null);
+    setAnalysisResult(null);
+    setAiResult(null);
+    setAiGeneratedAt(null);
+  };
 
   const resetApp = useCallback(() => {
     setSelectedFile(null);
     setFileInfo(null);
-    setResult(null);
-    setAnalysisResult(null);
-    setAiResult(null);
-    setAiGeneratedAt(null);
+    setFlowState("idle");
+    setStatusMessage("");
     setError("");
-    setIsDragging(false);
-    if (inputRef.current) {
-      inputRef.current.value = "";
-    }
-    navigate("/");
-  }, [navigate]);
+    resetResults();
+    clearInput();
+  }, []);
 
   const setFile = useCallback(async (file) => {
     setError("");
-    setResult(null);
-    setAnalysisResult(null);
-    setAiResult(null);
-    setAiGeneratedAt(null);
-    setFileInfo(null);
+    setStatusMessage("");
+    resetResults();
 
     if (!file) {
       setSelectedFile(null);
+      setFileInfo(null);
+      setFlowState("idle");
       return;
     }
 
     const extension = `.${file.name.split(".").pop()?.toLowerCase()}`;
     if (!ACCEPTED_EXTENSIONS.includes(extension)) {
+      console.error("Unsupported file type:", file.name);
+      setError("This file type is not supported. Please upload a CSV or XLSX file.");
       setSelectedFile(null);
-      setError("Please upload a CSV or XLSX file.");
+      setFileInfo(null);
+      setFlowState("idle");
+      clearInput();
       return;
     }
 
-    setSelectedFile(file);
     const estimatedRows = extension === ".csv" ? await estimateCsvRows(file) : null;
+    setSelectedFile(file);
     setFileInfo({
       name: file.name,
       size: file.size,
+      type: extension.replace(".", "").toUpperCase(),
       estimatedRows,
       tooLarge: file.size > MAX_FILE_SIZE_BYTES,
     });
+    setFlowState("selected");
   }, []);
+
+  const removeFile = () => {
+    setSelectedFile(null);
+    setFileInfo(null);
+    setFlowState("idle");
+    setStatusMessage("");
+    setError("");
+    resetResults();
+    clearInput();
+  };
 
   const handleDrop = (event) => {
     event.preventDefault();
@@ -176,64 +175,45 @@ function HomeFlow() {
     setFile(event.dataTransfer.files?.[0]);
   };
 
-  const handleUpload = async () => {
+  const handleContinue = async () => {
     if (!selectedFile) {
-      setError("Choose a dataset before uploading.");
+      setError("Choose a dataset before continuing.");
       return;
     }
 
     if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
-      setError("File size exceeds the 50MB limit.");
+      setError("This file is larger than the 50MB limit.");
       return;
     }
 
-    setIsUploading(true);
     setError("");
+    resetResults();
+    let uploadSucceeded = false;
 
     try {
-      const response = await uploadFile(selectedFile);
-      setResult(response);
-      setAnalysisResult(null);
-      setAiResult(null);
-      setAiGeneratedAt(null);
-    } catch (uploadError) {
-      const message =
-        uploadError.response?.data?.detail ||
-        uploadError.message ||
-        "Something went wrong while uploading the file.";
-      setError(message);
-    } finally {
-      setIsUploading(false);
-    }
-  };
+      setFlowState("cleaning");
+      setStatusMessage("Uploading dataset and cleaning data...");
+      const uploadResponse = await uploadFile(selectedFile);
+      uploadSucceeded = true;
+      setResult(uploadResponse);
 
-  const handleAnalyze = async () => {
-    if (!result?.supabase_path) {
-      setError("The cleaned dataset path is missing. Please upload the file again.");
-      return;
-    }
-
-    setIsAnalyzing(true);
-    setError("");
-
-    try {
-      const response = await analyzeDataset(result.supabase_path);
+      setFlowState("analyzing");
+      setStatusMessage("Running statistical analysis and preparing visualizations...");
+      const analysisResponse = await analyzeDataset(uploadResponse.supabase_path);
       setAnalysisResult({
-        ...response,
-        supabase_path: result.supabase_path,
-        cleaning_report: result.cleaning_report,
-        column_info: result.column_info,
+        ...analysisResponse,
+        supabase_path: uploadResponse.supabase_path,
+        cleaning_report: uploadResponse.cleaning_report,
+        column_info: uploadResponse.column_info,
       });
-      setAiResult(null);
-      setAiGeneratedAt(null);
-    } catch (analysisError) {
-      const message =
-        analysisError.response?.data?.detail ||
-        analysisError.message ||
-        "Something went wrong while analyzing the dataset.";
-      setError(message);
-    } finally {
-      setIsAnalyzing(false);
+
+      setFlowState("results");
+      setStatusMessage("Analysis complete.");
+    } catch (processError) {
+      console.error(processError);
+      setFlowState(uploadSucceeded ? "results" : "selected");
+      setStatusMessage("");
+      setError(getFriendlyError(processError));
     }
   };
 
@@ -245,6 +225,7 @@ function HomeFlow() {
 
     setIsGeneratingAI(true);
     setError("");
+    setStatusMessage("Generating AI insights...");
 
     try {
       const response = await generateAIAnalysis({
@@ -255,102 +236,130 @@ function HomeFlow() {
       });
       setAiResult(response);
       setAiGeneratedAt(new Date().toISOString());
+      setFlowState("ai");
+      setStatusMessage("AI report generated.");
     } catch (aiError) {
-      const message =
-        aiError.response?.data?.detail ||
-        aiError.message ||
-        "Something went wrong while generating the AI analysis.";
-      setError(message);
+      console.error(aiError);
+      setError(getFriendlyError(aiError, "AI request failed. Please check your API configuration and try again."));
+      setStatusMessage("");
     } finally {
       setIsGeneratingAI(false);
     }
   };
 
-  const currentStep = aiResult ? 4 : analysisResult ? 3 : result ? 2 : 1;
+  const hasStarted = ["cleaning", "analyzing", "results", "ai"].includes(flowState);
+  const isProcessing = ["cleaning", "analyzing"].includes(flowState);
+  const currentStep = aiResult ? 4 : analysisResult ? 3 : result ? 2 : selectedFile ? 1 : 0;
+  const overview = analysisResult?.analysis?.dataset_overview || {};
 
   return (
-    <section className="relative grid flex-1 gap-6 py-8 lg:grid-cols-[420px_minmax(0,1fr)]">
-      <div className="animated-grid-bg pointer-events-none absolute inset-0 -z-0" />
-      <div className="relative z-10 space-y-4">
-        <StepProgress currentStep={currentStep} />
-        <UploadPanel
+    <PageShell>
+      <input
+        ref={inputRef}
+        id="dataset-upload"
+        className="sr-only"
+        type="file"
+        accept=".csv,.xlsx"
+        aria-label="Upload CSV or Excel dataset"
+        onChange={(event) => setFile(event.target.files?.[0])}
+      />
+
+      {!hasStarted ? (
+        <UploadStart
           inputRef={inputRef}
+          fileInfo={fileInfo}
           isDragging={isDragging}
           setIsDragging={setIsDragging}
           handleDrop={handleDrop}
-          setFile={setFile}
-          selectedFile={selectedFile}
-          fileInfo={fileInfo}
+          removeFile={removeFile}
+          handleContinue={handleContinue}
+          error={error}
         />
-
-        {error && (
-          <div className="flex items-start gap-3 rounded-lg border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-100">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" aria-hidden="true" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        <button
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-emerald-400 px-4 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
-          type="button"
-          onClick={handleUpload}
-          disabled={!selectedFile || isUploading || fileInfo?.tooLarge}
-        >
-          {isUploading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              Cleaning your data...
-            </>
-          ) : (
-            <>
-              <UploadCloud className="h-4 w-4" aria-hidden="true" />
-              Upload and Clean
-            </>
+      ) : (
+        <div className="space-y-8">
+          <DatasetHeader
+            fileInfo={fileInfo}
+            overview={overview}
+            statusMessage={statusMessage}
+            isProcessing={isProcessing || isGeneratingAI}
+            onChangeFile={() => inputRef.current?.click()}
+          />
+          <AnalysisProgress currentStep={currentStep} flowState={flowState} />
+          {error && <ErrorMessage message={error} onRetry={flowState === "selected" ? handleContinue : undefined} />}
+          {isProcessing && <ProcessingState flowState={flowState} />}
+          {result && (
+            <CleaningReport result={result} />
           )}
-        </button>
+          {analysisResult && (
+            <AnalysisReport
+              result={analysisResult}
+              onGenerateAI={handleGenerateAI}
+              isGeneratingAI={isGeneratingAI}
+            />
+          )}
+          {aiResult && (
+            <AIReport
+              result={aiResult}
+              generatedAt={aiGeneratedAt}
+              onReset={resetApp}
+              onRegenerate={handleGenerateAI}
+              isRegenerating={isGeneratingAI}
+            />
+          )}
+        </div>
+      )}
+    </PageShell>
+  );
+}
+
+function PageShell({ children }) {
+  return <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">{children}</div>;
+}
+
+function UploadStart({ inputRef, fileInfo, isDragging, setIsDragging, handleDrop, removeFile, handleContinue, error }) {
+  return (
+    <section className="mx-auto max-w-4xl py-10 sm:py-14">
+      <div className="text-center">
+        <Link to="/" className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-950">
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back to Home
+        </Link>
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Start a new data analysis</h1>
+        <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600">
+          Upload a CSV or Excel file. DataWhiz AI will clean it, compute statistics, prepare visualizations, and generate an AI report.
+        </p>
       </div>
 
-      <div className="relative z-10 min-w-0">
-        {aiResult ? (
-          <AIReport result={aiResult} generatedAt={aiGeneratedAt} onReset={resetApp} />
-        ) : analysisResult ? (
-          <AnalysisReport result={analysisResult} onGenerateAI={handleGenerateAI} isGeneratingAI={isGeneratingAI} />
-        ) : result ? (
-          <CleaningReport result={result} onProceed={handleAnalyze} isAnalyzing={isAnalyzing} />
+      <div className="mt-10">
+        {!fileInfo ? (
+          <UploadDropzone
+            inputRef={inputRef}
+            isDragging={isDragging}
+            setIsDragging={setIsDragging}
+            handleDrop={handleDrop}
+          />
         ) : (
-          <div className="flex h-full min-h-[420px] items-center justify-center rounded-lg border border-zinc-800 bg-zinc-950/95 p-8 text-center shadow-panel backdrop-blur">
-            <div className="max-w-sm">
-              <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-300">
-                <Database className="h-6 w-6" aria-hidden="true" />
-              </div>
-              <p className="text-sm font-medium text-zinc-200">Cleaning report will appear here</p>
-              <p className="mt-2 text-sm leading-6 text-zinc-500">
-                Upload a dataset to review row counts, type conversions, filled values, and the cleaned preview.
-              </p>
-            </div>
-          </div>
+          <SelectedFileCard
+            fileInfo={fileInfo}
+            onChange={() => inputRef.current?.click()}
+            onRemove={removeFile}
+            onContinue={handleContinue}
+          />
         )}
       </div>
+
+      {error && <div className="mt-5"><ErrorMessage message={error} /></div>}
     </section>
   );
 }
 
-function UploadPanel({ inputRef, isDragging, setIsDragging, handleDrop, setFile, selectedFile, fileInfo }) {
+function UploadDropzone({ inputRef, isDragging, setIsDragging, handleDrop }) {
   return (
-    <div
-      className={`flex min-h-[300px] cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center transition ${
-        isDragging
-          ? "border-emerald-300 bg-emerald-400/10"
-          : "border-zinc-700 bg-zinc-950/95 hover:border-zinc-500 hover:bg-zinc-900/90"
+    <label
+      htmlFor="dataset-upload"
+      className={`flex min-h-[360px] cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed bg-white p-8 text-center shadow-sm transition ${
+        isDragging ? "border-emerald-500 bg-emerald-50" : "border-slate-300 hover:border-emerald-400 hover:bg-slate-50"
       }`}
-      role="button"
-      tabIndex={0}
-      onClick={() => inputRef.current?.click()}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          inputRef.current?.click();
-        }
-      }}
       onDragOver={(event) => {
         event.preventDefault();
         setIsDragging(true);
@@ -358,60 +367,210 @@ function UploadPanel({ inputRef, isDragging, setIsDragging, handleDrop, setFile,
       onDragLeave={() => setIsDragging(false)}
       onDrop={handleDrop}
     >
-      <input
-        ref={inputRef}
-        className="hidden"
-        type="file"
-        accept=".csv,.xlsx"
-        onChange={(event) => setFile(event.target.files?.[0])}
-      />
-      <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-emerald-300">
-        <UploadCloud className="h-7 w-7" aria-hidden="true" />
-      </div>
-      <p className="text-base font-medium text-white">Drop your dataset here</p>
-      <p className="mt-2 text-sm text-zinc-400">CSV or XLSX, 50MB max</p>
-      {selectedFile && fileInfo && (
-        <div className="mt-6 w-full rounded-lg border border-zinc-800 bg-black/30 p-3 text-left text-sm text-zinc-300">
-          <div className="flex items-center gap-2">
-            <FileSpreadsheet className="h-4 w-4 shrink-0 text-emerald-300" aria-hidden="true" />
-            <span className="truncate font-medium text-white">{fileInfo.name}</span>
+      <span className="grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 text-emerald-700">
+        <UploadCloud className="h-8 w-8" aria-hidden="true" />
+      </span>
+      <span className="mt-6 text-xl font-semibold text-slate-950">Drag and drop your dataset here</span>
+      <span className="mt-2 text-sm text-slate-500">or click to browse</span>
+      <span className="mt-6 inline-flex rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-600">
+        CSV and XLSX supported - 50MB max
+      </span>
+      <button
+        type="button"
+        className="mt-6 rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+        onClick={(event) => {
+          event.preventDefault();
+          inputRef.current?.click();
+        }}
+      >
+        Choose File
+      </button>
+    </label>
+  );
+}
+
+function SelectedFileCard({ fileInfo, onChange, onRemove, onContinue }) {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-start gap-4">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-700">
+            <FileCheck2 className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h2 className="truncate text-lg font-semibold text-slate-950">{fileInfo.name}</h2>
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden="true" />
+            </div>
+            <div className="mt-3 grid gap-2 text-sm text-slate-500 sm:grid-cols-3">
+              <span>Type: {fileInfo.type}</span>
+              <span>Size: {formatBytes(fileInfo.size)}</span>
+              <span>Estimated rows: {fileInfo.estimatedRows ? fileInfo.estimatedRows.toLocaleString() : "N/A"}</span>
+            </div>
+            {fileInfo.tooLarge && <p className="mt-3 text-sm font-medium text-red-600">This file exceeds the 50MB limit.</p>}
           </div>
-          <div className="mt-3 grid gap-2 text-xs text-zinc-500 sm:grid-cols-2">
-            <span>Size: {formatBytes(fileInfo.size)}</span>
-            <span>Estimated rows: {fileInfo.estimatedRows ? fileInfo.estimatedRows.toLocaleString() : "N/A"}</span>
-          </div>
-          {fileInfo.tooLarge && <p className="mt-3 text-xs text-red-300">This file exceeds the 50MB limit.</p>}
         </div>
-      )}
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button type="button" className="btn-secondary" onClick={onChange}>
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            Change File
+          </button>
+          <button type="button" className="btn-danger" onClick={onRemove}>
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+            Remove File
+          </button>
+          <button type="button" className="btn-primary" onClick={onContinue} disabled={fileInfo.tooLarge}>
+            Continue
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
-function StepProgress({ currentStep }) {
-  const steps = ["Upload", "Cleaning Report", "Analysis", "AI Report"];
+function DatasetHeader({ fileInfo, overview, statusMessage, isProcessing, onChangeFile }) {
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-950/95 p-4 backdrop-blur">
-      <div className="grid gap-3 sm:grid-cols-4">
+    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-start gap-4">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-700">
+            <FileSpreadsheet className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-semibold text-slate-950">{fileInfo?.name || "Dataset"}</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              {fileInfo?.type || "File"} - {fileInfo ? formatBytes(fileInfo.size) : "N/A"}
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-4 lg:min-w-[560px]">
+          <HeaderMetric label="Rows" value={formatNumber(overview.total_rows)} />
+          <HeaderMetric label="Columns" value={formatNumber(overview.total_columns)} />
+          <HeaderMetric label="Status" value={isProcessing ? "Processing" : statusMessage || "Ready"} />
+          <button type="button" className="btn-secondary justify-center" onClick={onChangeFile}>
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            Change File
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HeaderMetric({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+      <p className="text-xs font-medium uppercase text-slate-500">{label}</p>
+      <p className="mt-1 truncate text-sm font-semibold text-slate-950">{value}</p>
+    </div>
+  );
+}
+
+function AnalysisProgress({ currentStep }) {
+  const steps = ["File Uploaded", "Data Cleaned", "Statistical Analysis", "AI Report Generated"];
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="grid gap-3 md:grid-cols-4">
         {steps.map((step, index) => {
           const stepNumber = index + 1;
-          const isActive = stepNumber === currentStep;
           const isComplete = stepNumber < currentStep;
+          const isCurrent = stepNumber === currentStep;
           return (
-            <div key={step} className="flex items-center gap-2">
+            <div key={step} className="flex items-center gap-3">
               <span
-                className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-semibold ${
-                  isComplete || isActive ? "bg-emerald-400 text-zinc-950" : "bg-zinc-800 text-zinc-400"
+                className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-semibold ${
+                  isComplete
+                    ? "bg-emerald-600 text-white"
+                    : isCurrent
+                      ? "bg-slate-950 text-white"
+                      : "bg-slate-100 text-slate-500"
                 }`}
               >
-                {stepNumber}
+                {isComplete ? <CheckCircle2 className="h-5 w-5" aria-hidden="true" /> : stepNumber}
               </span>
-              <span className={`text-xs font-medium ${isActive ? "text-white" : "text-zinc-500"}`}>{step}</span>
+              <span className={`text-sm font-medium ${isCurrent ? "text-slate-950" : "text-slate-500"}`}>{step}</span>
             </div>
           );
         })}
       </div>
+    </section>
+  );
+}
+
+function ProcessingState({ flowState }) {
+  const message = flowState === "cleaning" ? "Cleaning data..." : "Preparing visualizations...";
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex items-center gap-4">
+        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-700">
+          <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
+        </span>
+        <div>
+          <h2 className="text-base font-semibold text-slate-950">{message}</h2>
+          <p className="mt-1 text-sm text-slate-500">This usually takes a few seconds for typical CSV or Excel files.</p>
+        </div>
+      </div>
+      <div className="mt-6 grid gap-4 md:grid-cols-3">
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
+      </div>
+    </section>
+  );
+}
+
+function SkeletonCard() {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="h-3 w-24 animate-pulse rounded bg-slate-200" />
+      <div className="mt-4 h-8 w-32 animate-pulse rounded bg-slate-200" />
+      <div className="mt-3 h-3 w-full animate-pulse rounded bg-slate-200" />
     </div>
   );
+}
+
+function ErrorMessage({ message, onRetry }) {
+  return (
+    <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800">
+      <div className="flex items-start gap-3">
+        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="font-semibold">Something needs attention</p>
+          <p className="mt-1 text-sm leading-6">{message}</p>
+          {onRetry && (
+            <button type="button" className="mt-3 rounded-xl bg-red-700 px-4 py-2 text-sm font-semibold text-white" onClick={onRetry}>
+              Try Again
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getFriendlyError(error, fallback = "Something went wrong. Please try again.") {
+  const rawMessage = error.response?.data?.detail || error.message || fallback;
+  console.error("Technical error:", rawMessage);
+
+  if (String(rawMessage).includes("50MB")) {
+    return "This file is larger than the 50MB upload limit.";
+  }
+  if (String(rawMessage).includes("500,000 rows")) {
+    return "This dataset is too large for the current version. Please use a file with 500,000 rows or fewer.";
+  }
+  if (String(rawMessage).toLowerCase().includes("unsupported") || String(rawMessage).includes(".csv")) {
+    return "Please upload a valid CSV or XLSX file.";
+  }
+  if (String(rawMessage).toLowerCase().includes("supabase")) {
+    return "The storage service could not be reached. Please try again shortly.";
+  }
+  if (String(rawMessage).toLowerCase().includes("groq")) {
+    return "The AI analysis service could not complete the request. Please try again shortly.";
+  }
+  if (String(rawMessage).toLowerCase().includes("network")) {
+    return "The backend server could not be reached. It may still be waking up.";
+  }
+  return fallback;
 }
 
 async function estimateCsvRows(file) {
@@ -433,6 +592,9 @@ async function estimateCsvRows(file) {
 }
 
 function formatBytes(bytes) {
+  if (!bytes && bytes !== 0) {
+    return "N/A";
+  }
   if (bytes < 1024) {
     return `${bytes} B`;
   }
@@ -440,4 +602,8 @@ function formatBytes(bytes) {
     return `${(bytes / 1024).toFixed(1)} KB`;
   }
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatNumber(value) {
+  return typeof value === "number" ? value.toLocaleString() : "N/A";
 }
