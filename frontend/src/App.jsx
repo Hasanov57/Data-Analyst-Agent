@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, Route, Routes, useNavigate } from "react-router-dom";
+import { Link, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   ArrowLeft,
@@ -74,8 +74,25 @@ export default function App() {
         <Route path="/analyze" element={<AnalyzeWorkspace />} />
         <Route path="/history" element={<HistoryRoute />} />
       </Routes>
+      <ScrollToHash />
     </main>
   );
+}
+
+function ScrollToHash() {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!location.hash) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      document.querySelector(location.hash)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [location.hash, location.pathname]);
+
+  return null;
 }
 
 function HistoryRoute() {
@@ -89,6 +106,7 @@ function HistoryRoute() {
 
 function AnalyzeWorkspace() {
   const inputRef = useRef(null);
+  const aiReportRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileInfo, setFileInfo] = useState(null);
   const [flowState, setFlowState] = useState("idle");
@@ -252,6 +270,16 @@ function AnalyzeWorkspace() {
   const currentStep = aiResult ? 4 : analysisResult ? 3 : result ? 2 : selectedFile ? 1 : 0;
   const overview = analysisResult?.analysis?.dataset_overview || {};
 
+  useEffect(() => {
+    if (flowState !== "ai" || !aiResult) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      aiReportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  }, [aiResult, flowState]);
+
   return (
     <PageShell>
       <input
@@ -298,13 +326,15 @@ function AnalyzeWorkspace() {
             />
           )}
           {aiResult && (
-            <AIReport
-              result={aiResult}
-              generatedAt={aiGeneratedAt}
-              onReset={resetApp}
-              onRegenerate={handleGenerateAI}
-              isRegenerating={isGeneratingAI}
-            />
+            <div ref={aiReportRef}>
+              <AIReport
+                result={aiResult}
+                generatedAt={aiGeneratedAt}
+                onReset={resetApp}
+                onRegenerate={handleGenerateAI}
+                isRegenerating={isGeneratingAI}
+              />
+            </div>
           )}
         </div>
       )}

@@ -3,7 +3,7 @@ import { ArrowRight, CheckCircle2, Loader2, Table2 } from "lucide-react";
 const summaryLabels = [
   ["Rows Before", "rows_before"],
   ["Rows After", "rows_after"],
-  ["Duplicates Removed", "duplicates_removed"],
+  ["Full-Row Duplicates Removed", "duplicates_removed"],
   ["Nulls Filled", "nulls_filled"],
 ];
 
@@ -32,6 +32,10 @@ export default function CleaningReport({ result, onProceed, isAnalyzing = false 
             <MetricCard key={key} label={label} value={formatNumber(report[key])} />
           ))}
         </div>
+        <p className="mt-4 text-xs leading-5 text-slate-500">
+          Duplicate removal checks fully identical rows after basic text trimming. Repeated names, ticket numbers,
+          IDs, or categories are not removed unless the entire row matches.
+        </p>
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">

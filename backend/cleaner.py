@@ -81,8 +81,7 @@ def clean_file(file_path: str | Path, original_filename: str) -> dict[str, Any]:
     }
 
     rows_before = int(len(df))
-    duplicate_count = int(df.duplicated().sum())
-    df = df.drop_duplicates().reset_index(drop=True)
+    raw_duplicate_count = int(raw_df.duplicated().sum())
 
     for column in df.columns:
         if _is_text_column(df[column]):
@@ -95,6 +94,9 @@ def clean_file(file_path: str | Path, original_filename: str) -> dict[str, Any]:
                 column_meta[column]["transformations"].append(
                     f"stripped whitespace from {whitespace_changes} values"
                 )
+
+    duplicate_count = int(df.duplicated().sum())
+    df = df.drop_duplicates().reset_index(drop=True)
 
     type_conversions: list[dict[str, str]] = []
 
@@ -204,6 +206,11 @@ def clean_file(file_path: str | Path, original_filename: str) -> dict[str, Any]:
         "rows_before": rows_before,
         "rows_after": int(len(df)),
         "duplicates_removed": duplicate_count,
+        "duplicate_detection": {
+            "method": "full-row duplicate detection after basic text trimming",
+            "raw_exact_duplicate_rows": raw_duplicate_count,
+            "duplicates_removed": duplicate_count,
+        },
         "columns_cleaned": cleaned_columns,
         "nulls_filled": total_nulls_filled,
         "nulls_filled_by_column": {

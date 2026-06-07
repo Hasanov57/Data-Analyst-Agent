@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { BarChart3, Menu, X } from "lucide-react";
 
 const navLinks = [
@@ -12,6 +12,7 @@ const navLinks = [
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const location = useLocation();
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur">
@@ -28,7 +29,7 @@ export default function Navbar() {
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Primary navigation">
           {navLinks.map((link) => (
-            <NavItem key={link.label} link={link} />
+            <NavItem key={link.label} link={link} location={location} />
           ))}
         </nav>
 
@@ -56,7 +57,7 @@ export default function Navbar() {
         <div className="border-t border-slate-200 bg-white px-4 py-4 md:hidden">
           <nav className="flex flex-col gap-2" aria-label="Mobile navigation">
             {navLinks.map((link) => (
-              <NavItem key={link.label} link={link} onClick={() => setIsOpen(false)} />
+              <NavItem key={link.label} link={link} location={location} onClick={() => setIsOpen(false)} />
             ))}
             <Link
               to="/analyze"
@@ -72,24 +73,28 @@ export default function Navbar() {
   );
 }
 
-function NavItem({ link, onClick }) {
+function NavItem({ link, location, onClick }) {
   const isAnchor = link.to.includes("#");
   const className =
     "rounded-xl px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2";
+  const activeClassName = "bg-slate-100 text-slate-950";
 
   if (isAnchor) {
+    const hash = `#${link.to.split("#")[1]}`;
+    const isActive = location.pathname === "/" && location.hash === hash;
     return (
-      <a href={link.to} className={className} onClick={onClick}>
+      <Link to={link.to} className={`${className} ${isActive ? activeClassName : ""}`} onClick={onClick}>
         {link.label}
-      </a>
+      </Link>
     );
   }
 
   return (
     <NavLink
       to={link.to}
+      end={link.to === "/"}
       className={({ isActive }) =>
-        `${className} ${isActive ? "bg-slate-100 text-slate-950" : ""}`
+        `${className} ${isActive && !location.hash ? activeClassName : ""}`
       }
       onClick={onClick}
     >

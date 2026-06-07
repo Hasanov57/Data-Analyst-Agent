@@ -75,7 +75,8 @@ Dataset overview:
 Cleaning summary:
 - Rows before cleaning: {cleaning_report.get("rows_before")}
 - Rows after cleaning: {cleaning_report.get("rows_after")}
-- Duplicates removed: {cleaning_report.get("duplicates_removed")}
+- Full-row duplicates removed: {cleaning_report.get("duplicates_removed")}
+- Duplicate detection method: {cleaning_report.get("duplicate_detection", {}).get("method")}
 - Nulls filled: {cleaning_report.get("nulls_filled")}
 - Type conversions: {_compact_json(cleaning_report.get("type_conversions", []))}
 - Columns cleaned: {_compact_json(cleaning_report.get("columns_cleaned", []))}
