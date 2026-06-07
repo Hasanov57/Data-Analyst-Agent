@@ -25,7 +25,7 @@ Use this exact structure:
 {
   "executive_summary": "3-4 sentence high-level summary of what this dataset is about and its overall quality",
   "data_quality_assessment": {
-    "score": 0,
+    "score": "integer from 0 to 100 based on the objective data quality evidence",
     "findings": ["finding 1", "finding 2"],
     "recommendations": ["rec 1", "rec 2"]
   },
@@ -101,6 +101,12 @@ Anomaly and outlier summary:
 - Overall outlier percentage: {_format_number(outliers.get("overall_outlier_percentage"))}%
 - Columns with most outliers: {_compact_json(outliers.get("columns_with_most_outliers", []))}
 
+Data quality scoring guidance:
+- Use 90-100 for very clean data with minimal missing values, duplicates, and outliers.
+- Use 70-89 for generally usable data with some cleanup or moderate issues.
+- Use 40-69 for data that is usable but needs meaningful review.
+- Use below 40 only for severe quality problems such as very high missingness, duplicate rates, or outlier contamination.
+
 Write conclusions that directly reference the actual columns and numbers above. Avoid generic commentary.
 {JSON_SCHEMA_INSTRUCTIONS}
 """
@@ -127,6 +133,84 @@ async def call_groq_api(prompt_dict: dict[str, str]) -> dict[str, Any]:
             )
             second_response = await _send_groq_request(client, api_key, prompt_dict["system_prompt"], retry_prompt)
             return _parse_model_json(second_response)
+
+
+def apply_objective_quality_score(
+    ai_report: dict[str, Any],
+    analysis_results: dict[str, Any],
+    cleaning_report: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Use deterministic data-quality scoring instead of trusting an LLM-created number."""
+    cleaning_report = cleaning_report or {}
+    score, score_factors = calculate_data_quality_score(analysis_results, cleaning_report)
+    assessment = ai_report.setdefault("data_quality_assessment", {})
+    assessment["score"] = score
+
+    existing_findings = assessment.get("findings")
+    if not isinstance(existing_findings, list):
+        existing_findings = []
+
+    factor_summary = (
+        "Objective quality score factors: "
+        f"missing cells {score_factors['missing_cell_percentage']}%, "
+        f"duplicate rows {score_factors['duplicate_row_percentage']}%, "
+        f"outlier cells {score_factors['outlier_percentage']}%, "
+        f"high-cardinality categorical columns {score_factors['high_cardinality_columns']}."
+    )
+    if factor_summary not in existing_findings:
+        existing_findings.insert(0, factor_summary)
+    assessment["findings"] = existing_findings
+    assessment["score_factors"] = score_factors
+    return ai_report
+
+
+def calculate_data_quality_score(
+    analysis_results: dict[str, Any],
+    cleaning_report: dict[str, Any],
+) -> tuple[int, dict[str, Any]]:
+    pre_profile = cleaning_report.get("pre_clean_profile", {})
+    overview = analysis_results.get("dataset_overview", {})
+    categorical_analysis = analysis_results.get("categorical_analysis", {})
+    outlier_summary = analysis_results.get("outlier_summary", {})
+
+    rows_before = _safe_number(cleaning_report.get("rows_before"), pre_profile.get("total_rows"), overview.get("total_rows"))
+    rows_before = max(rows_before, 0)
+    total_columns = int(_safe_number(pre_profile.get("total_columns"), overview.get("total_columns")))
+    duplicate_rows = _safe_number(cleaning_report.get("duplicates_removed"), pre_profile.get("duplicate_rows"))
+
+    total_cells = rows_before * total_columns
+    missing_cells = 0
+    for column_profile in pre_profile.get("columns", {}).values():
+        missing_cells += int(_safe_number(column_profile.get("null_count")))
+
+    missing_percentage = (missing_cells / total_cells * 100) if total_cells else 0
+    duplicate_percentage = (duplicate_rows / rows_before * 100) if rows_before else 0
+    outlier_percentage = _safe_number(outlier_summary.get("overall_outlier_percentage"))
+    high_cardinality_columns = sum(
+        1 for details in categorical_analysis.values() if details.get("high_cardinality")
+    )
+    categorical_count = max(len(categorical_analysis), 1)
+    high_cardinality_ratio = high_cardinality_columns / categorical_count
+
+    type_conversion_count = len(cleaning_report.get("type_conversions", []) or [])
+    type_conversion_ratio = type_conversion_count / total_columns if total_columns else 0
+
+    penalty = 0
+    penalty += min(35, missing_percentage * 0.7)
+    penalty += min(25, duplicate_percentage * 1.2)
+    penalty += min(20, outlier_percentage * 1.5)
+    penalty += min(10, high_cardinality_ratio * 10)
+    penalty += min(5, type_conversion_ratio * 5)
+
+    score = int(round(max(0, min(100, 100 - penalty))))
+    score_factors = {
+        "missing_cell_percentage": round(missing_percentage, 2),
+        "duplicate_row_percentage": round(duplicate_percentage, 2),
+        "outlier_percentage": round(outlier_percentage, 2),
+        "high_cardinality_columns": high_cardinality_columns,
+        "type_conversions": type_conversion_count,
+    }
+    return score, score_factors
 
 
 async def _send_groq_request(
@@ -260,3 +344,16 @@ def _format_number(value: Any) -> str:
     if isinstance(value, (int, float)):
         return f"{value:.3f}" if isinstance(value, float) else str(value)
     return "N/A" if value is None else str(value)
+
+
+def _safe_number(*values: Any) -> float:
+    for value in values:
+        if value is None:
+            continue
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(number, float) or not (number != number):
+            return number
+    return 0
