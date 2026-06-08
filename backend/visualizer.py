@@ -17,6 +17,7 @@ BACKGROUND = "#0f1117"
 TEXT_COLOR = "#ffffff"
 ACCENT = "#4f8ef7"
 GRID_COLOR = "#2b3240"
+PLOT_SAMPLE_LIMIT = 3500
 
 
 def generate_charts(df: pd.DataFrame, analysis_results: dict[str, Any]) -> dict[str, str]:
@@ -49,11 +50,11 @@ def _distribution_plots(df: pd.DataFrame, numeric_columns: list[str]) -> dict[st
             series = pd.to_numeric(df[column], errors="coerce").dropna()
             if series.empty:
                 continue
-            if len(series) > 10000:
-                series = series.sample(10000, random_state=42)
+            if len(series) > PLOT_SAMPLE_LIMIT:
+                series = series.sample(PLOT_SAMPLE_LIMIT, random_state=42)
 
             fig, ax = _new_figure()
-            sns.histplot(series, kde=True, color=ACCENT, edgecolor=BACKGROUND, ax=ax)
+            ax.hist(series, bins="auto", color=ACCENT, edgecolor=BACKGROUND, alpha=0.88)
             _style_axis(ax, f"Distribution: {column}", column, "Count")
             charts[f"distribution_{column}"] = _figure_to_base64(fig)
         except Exception:
@@ -134,8 +135,8 @@ def _outlier_box_plots(df: pd.DataFrame, numeric_columns: list[str], analysis_re
             series = pd.to_numeric(df[column], errors="coerce").dropna()
             if series.empty:
                 continue
-            if len(series) > 10000:
-                series = series.sample(10000, random_state=42)
+            if len(series) > PLOT_SAMPLE_LIMIT:
+                series = series.sample(PLOT_SAMPLE_LIMIT, random_state=42)
 
             fig, ax = _new_figure()
             sns.boxplot(x=series, color=ACCENT, ax=ax)
@@ -200,7 +201,7 @@ def _style_axis(ax, title: str, xlabel: str, ylabel: str) -> None:
 def _figure_to_base64(fig) -> str:
     buffer = BytesIO()
     fig.tight_layout()
-    fig.savefig(buffer, format="png", dpi=140, facecolor=BACKGROUND, bbox_inches="tight")
+    fig.savefig(buffer, format="png", dpi=110, facecolor=BACKGROUND, bbox_inches="tight")
     plt.close(fig)
     buffer.seek(0)
     return base64.b64encode(buffer.read()).decode("utf-8")

@@ -15,7 +15,7 @@ from pandas.api.types import (
 
 DATE_HINT_PATTERN = re.compile(
     r"(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|"
-    r"\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\b)",
+    r"\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*[\s/-]+\d{1,2}(?:,?[\s/-]+\d{2,4})?|\d{1,2}[\s/-]+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*(?:[\s/-]+\d{2,4})?)",
     re.IGNORECASE,
 )
 
@@ -260,7 +260,7 @@ def _maybe_convert_to_datetime(series: pd.Series) -> pd.Series | None:
     if date_hint_ratio < 0.6:
         return None
 
-    parsed = series.map(lambda value: pd.NaT if pd.isna(value) else pd.to_datetime(value, errors="coerce"))
+    parsed = pd.to_datetime(series, errors="coerce")
     success_ratio = parsed[series.notna()].notna().mean()
 
     if success_ratio >= 0.6:
