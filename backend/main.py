@@ -113,7 +113,10 @@ async def analyze_dataset(request: AnalyzeRequest):
     try:
         dataframe = download_cleaned_file(request.supabase_path)
         analysis_results = analyze_dataframe(dataframe)
-        charts = generate_charts(dataframe, analysis_results)
+        try:
+            charts = generate_charts(dataframe, analysis_results)
+        except Exception:
+            charts = {}
 
         return {
             "analysis": analysis_results,

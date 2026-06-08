@@ -7,5 +7,4 @@ supabase
 python-dotenv
 numpy
 matplotlib
-seaborn
 httpx

@@ -8,7 +8,6 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
 
 from analyzer import prepare_dataframe_for_analysis
 
@@ -17,7 +16,10 @@ BACKGROUND = "#0f1117"
 TEXT_COLOR = "#ffffff"
 ACCENT = "#4f8ef7"
 GRID_COLOR = "#2b3240"
-PLOT_SAMPLE_LIMIT = 3500
+PLOT_SAMPLE_LIMIT = 1800
+MAX_DISTRIBUTION_CHARTS = 4
+MAX_CATEGORICAL_CHARTS = 6
+MAX_OUTLIER_CHARTS = 3
 
 
 def generate_charts(df: pd.DataFrame, analysis_results: dict[str, Any]) -> dict[str, str]:
@@ -39,7 +41,7 @@ def _distribution_plots(df: pd.DataFrame, numeric_columns: list[str]) -> dict[st
         df[numeric_columns]
         .var(numeric_only=True)
         .sort_values(ascending=False)
-        .head(6)
+        .head(MAX_DISTRIBUTION_CHARTS)
         .index.tolist()
         if numeric_columns
         else []
@@ -73,22 +75,18 @@ def _correlation_heatmap(df: pd.DataFrame, numeric_columns: list[str]) -> dict[s
             df[numeric_columns]
             .var(numeric_only=True)
             .sort_values(ascending=False)
-            .head(12)
+            .head(8)
             .index.tolist()
         )
         corr = df[selected_columns].corr(method="pearson")
         fig, ax = _new_figure()
-        sns.heatmap(
-            corr,
-            cmap=sns.color_palette("vlag", as_cmap=True),
-            center=0,
-            annot=True,
-            fmt=".2f",
-            linewidths=0.5,
-            linecolor=GRID_COLOR,
-            cbar_kws={"shrink": 0.8},
-            ax=ax,
-        )
+        image = ax.imshow(corr.values, cmap="coolwarm", vmin=-1, vmax=1)
+        fig.colorbar(image, ax=ax, shrink=0.8)
+        ax.set_xticks(range(len(corr.columns)), labels=[str(column) for column in corr.columns])
+        ax.set_yticks(range(len(corr.index)), labels=[str(column) for column in corr.index])
+        for row_index, row in enumerate(corr.values):
+            for col_index, value in enumerate(row):
+                ax.text(col_index, row_index, f"{value:.2f}", ha="center", va="center", color=TEXT_COLOR, fontsize=8)
         _style_axis(ax, "Correlation Heatmap", "", "")
         ax.tick_params(axis="x", rotation=35)
         ax.tick_params(axis="y", rotation=0)
@@ -101,13 +99,23 @@ def _correlation_heatmap(df: pd.DataFrame, numeric_columns: list[str]) -> dict[s
 
 def _categorical_bar_charts(df: pd.DataFrame, categorical_columns: list[str]) -> dict[str, str]:
     charts = {}
+    eligible_columns = []
 
     for column in categorical_columns:
         try:
             unique_count = df[column].nunique(dropna=False)
-            if unique_count >= 20:
-                continue
+        except Exception:
+            continue
+        if unique_count < 20:
+            eligible_columns.append((column, unique_count))
 
+    eligible_columns = [
+        column
+        for column, _ in sorted(eligible_columns, key=lambda item: (item[1], str(item[0])))[:MAX_CATEGORICAL_CHARTS]
+    ]
+
+    for column in eligible_columns:
+        try:
             counts = df[column].fillna("Unknown").astype(str).value_counts().head(10).sort_values()
             if counts.empty:
                 continue
@@ -130,7 +138,7 @@ def _outlier_box_plots(df: pd.DataFrame, numeric_columns: list[str], analysis_re
         column for column in numeric_columns if descriptive_stats.get(str(column), {}).get("outlier_count", 0) > 0
     ]
 
-    for column in outlier_columns[:6]:
+    for column in outlier_columns[:MAX_OUTLIER_CHARTS]:
         try:
             series = pd.to_numeric(df[column], errors="coerce").dropna()
             if series.empty:
@@ -139,7 +147,7 @@ def _outlier_box_plots(df: pd.DataFrame, numeric_columns: list[str], analysis_re
                 series = series.sample(PLOT_SAMPLE_LIMIT, random_state=42)
 
             fig, ax = _new_figure()
-            sns.boxplot(x=series, color=ACCENT, ax=ax)
+            ax.boxplot(series, vert=False, patch_artist=True, boxprops={"facecolor": ACCENT, "color": ACCENT})
             _style_axis(ax, f"Outliers: {column}", column, "")
             charts[f"outliers_{column}"] = _figure_to_base64(fig)
         except Exception:
@@ -182,7 +190,7 @@ def _time_series_chart(
 
 
 def _new_figure():
-    fig, ax = plt.subplots(figsize=(8, 4), facecolor=BACKGROUND)
+    fig, ax = plt.subplots(figsize=(7.2, 3.6), facecolor=BACKGROUND)
     ax.set_facecolor(BACKGROUND)
     return fig, ax
 
@@ -201,7 +209,7 @@ def _style_axis(ax, title: str, xlabel: str, ylabel: str) -> None:
 def _figure_to_base64(fig) -> str:
     buffer = BytesIO()
     fig.tight_layout()
-    fig.savefig(buffer, format="png", dpi=110, facecolor=BACKGROUND, bbox_inches="tight")
+    fig.savefig(buffer, format="png", dpi=95, facecolor=BACKGROUND, bbox_inches="tight")
     plt.close(fig)
     buffer.seek(0)
     return base64.b64encode(buffer.read()).decode("utf-8")
