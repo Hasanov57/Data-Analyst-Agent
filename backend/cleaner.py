@@ -1,3 +1,4 @@
+import csv
 import re
 from pathlib import Path
 from typing import Any
@@ -25,14 +26,24 @@ def load_file(file_path: str | Path, original_filename: str) -> pd.DataFrame:
 
     if extension == ".csv":
         try:
-            return pd.read_csv(file_path)
+            return pd.read_csv(file_path, sep=_detect_csv_delimiter(file_path, "utf-8"))
         except UnicodeDecodeError:
-            return pd.read_csv(file_path, encoding="latin-1")
+            return pd.read_csv(file_path, encoding="latin-1", sep=_detect_csv_delimiter(file_path, "latin-1"))
 
     if extension == ".xlsx":
         return pd.read_excel(file_path, engine="openpyxl")
 
     raise ValueError("Unsupported file type. Please upload a .csv or .xlsx file.")
+
+
+def _detect_csv_delimiter(file_path: str | Path, encoding: str) -> str:
+    try:
+        with open(file_path, "r", encoding=encoding, newline="") as file:
+            sample = file.read(65536)
+        dialect = csv.Sniffer().sniff(sample, delimiters=[",", ";", "\t", "|"])
+        return dialect.delimiter
+    except (csv.Error, OSError, UnicodeDecodeError):
+        return ","
 
 
 def profile_dataframe(df: pd.DataFrame) -> dict[str, Any]:
