@@ -6,6 +6,6 @@ python-multipart
 supabase
 python-dotenv
 numpy
-plotly
-kaleido
+matplotlib
+seaborn
 httpx

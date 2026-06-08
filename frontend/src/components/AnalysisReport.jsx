@@ -1,7 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { ArrowRight, BarChart3, Boxes, CalendarDays, Hash, Loader2, Sigma, Table2 } from "lucide-react";
-
-const PlotlyChart = lazy(() => import("./PlotlyChart"));
 
 const numericStatKeys = [
   ["Count", "count"],
@@ -25,21 +22,7 @@ export default function AnalysisReport({ result, onGenerateAI, isGeneratingAI = 
   const correlations = analysis.correlation_analysis || {};
   const categoricalAnalysis = analysis.categorical_analysis || {};
   const outlierSummary = analysis.outlier_summary || {};
-  const chartTabs = useMemo(() => buildChartTabs(charts), [charts]);
-  const [activeChartTab, setActiveChartTab] = useState("");
-
-  useEffect(() => {
-    if (!chartTabs.length) {
-      setActiveChartTab("");
-      return;
-    }
-
-    if (!chartTabs.some((tab) => tab.id === activeChartTab)) {
-      setActiveChartTab(chartTabs[0].id);
-    }
-  }, [activeChartTab, chartTabs]);
-
-  const currentChartTab = chartTabs.find((tab) => tab.id === activeChartTab) || chartTabs[0];
+  const chartEntries = Object.entries(charts);
 
   return (
     <section className="space-y-6">
@@ -63,41 +46,21 @@ export default function AnalysisReport({ result, onGenerateAI, isGeneratingAI = 
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-950">Interactive Charts</h3>
-            <p className="mt-1 text-sm text-slate-500">Hover, zoom, pan, and download chart data directly from each visualization.</p>
-          </div>
-          {chartTabs.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {chartTabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  className={`rounded-full px-3 py-2 text-sm font-semibold transition ${
-                    activeChartTab === tab.id
-                      ? "bg-[#4f8ef7] text-white shadow-sm"
-                      : "border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
-                  }`}
-                  onClick={() => setActiveChartTab(tab.id)}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {currentChartTab ? (
+        <h3 className="mb-4 text-lg font-semibold text-slate-950">Charts</h3>
+        {chartEntries.length ? (
           <div className="grid gap-5 xl:grid-cols-2">
-            {currentChartTab.charts.map(([name, chartJson]) => (
-              <figure key={name} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm">
-                <figcaption className="mb-3 flex items-center justify-between gap-3 px-1 text-sm font-semibold text-slate-800">
-                  <span>{formatChartName(name)}</span>
+            {chartEntries.map(([name, image]) => (
+              <figure key={name} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="bg-slate-50 p-3">
+                  <img
+                    className="h-auto w-full rounded-xl"
+                    src={`data:image/png;base64,${image}`}
+                    alt={formatChartName(name)}
+                  />
+                </div>
+                <figcaption className="border-t border-slate-200 px-4 py-3 text-sm font-medium text-slate-700">
+                  {formatChartName(name)}
                 </figcaption>
-                <Suspense fallback={<ChartLoading />}>
-                  <PlotlyChart chartJson={chartJson} title={formatChartName(name)} />
-                </Suspense>
               </figure>
             ))}
           </div>
@@ -217,53 +180,6 @@ export default function AnalysisReport({ result, onGenerateAI, isGeneratingAI = 
   );
 }
 
-function ChartLoading() {
-  return (
-    <div className="chart-wrapper flex min-h-[400px] items-center justify-center text-sm text-slate-300">
-      <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-      Loading interactive chart...
-    </div>
-  );
-}
-
-function buildChartTabs(charts) {
-  const entries = Object.entries(charts || {}).filter(([, chartJson]) => Boolean(chartJson));
-  const groups = [
-    {
-      id: "distributions",
-      label: "Distributions",
-      charts: entries.filter(([name]) => name.startsWith("distribution_")),
-    },
-    {
-      id: "correlations",
-      label: "Correlations",
-      charts: entries.filter(([name]) => name === "correlation_heatmap"),
-    },
-    {
-      id: "categories",
-      label: "Categories",
-      charts: entries.filter(([name]) => name.startsWith("categorical_")),
-    },
-    {
-      id: "outliers",
-      label: "Outliers",
-      charts: entries.filter(([name]) => name === "outlier_boxplot" || name.startsWith("outliers_")),
-    },
-    {
-      id: "time-series",
-      label: "Time Series",
-      charts: entries.filter(([name]) => name === "timeseries" || name.startsWith("time_series")),
-    },
-    {
-      id: "data-quality",
-      label: "Data Quality",
-      charts: entries.filter(([name]) => name === "missing_values"),
-    },
-  ];
-
-  return groups.filter((group) => group.charts.length > 0);
-}
-
 function StatCard({ icon: Icon, label, value }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -326,14 +242,7 @@ function statTone(key, value) {
 }
 
 function formatChartName(name) {
-  return name.replace(/^distribution_/, "Distribution - ")
-    .replace(/^categorical_/, "Top Values - ")
-    .replace("correlation_heatmap", "Correlation Matrix")
-    .replace("outlier_boxplot", "Outlier Overview")
-    .replace("timeseries", "Time Series Trend")
-    .replace("missing_values", "Missing Values Map")
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return name.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function formatNumber(value) {
